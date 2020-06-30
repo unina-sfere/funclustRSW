@@ -61,7 +61,8 @@ plot_analysis <- data$X %>%
   theme_bw() +
   ylab(expression("Resistance "~paste("[",mu,Omega,"]"))) +
   xlab("Time [ms]") +
-  ylim(c(260, 320))
+  ylim(c(260, 320)) +
+  theme(aspect.ratio=1)
 # plot_analysis
 # ggsave("plots/plot_analysis.png", plot_analysis, width = 5, height = 4)
 
@@ -72,7 +73,8 @@ plot_ref_data <- read.csv("reference_profile.csv") %>%
   theme_bw() +
   ylab(expression("Resistance " ~ paste("[", mu, Omega, "]"))) +
   xlab("Time [ms]") +
-  ylim(c(260, 320))
+  ylim(c(260, 320)) +
+  theme(aspect.ratio=1)
 # plot_ref_data
 # ggsave("plots/plot_ref_data.pdf", plot_ref_data, width = 5, height = 4)
 
@@ -252,9 +254,9 @@ get_centroids_df <- function(cl, method) {
   df
   
 }
-lay <- rbind(c(rep(1, 495), rep(NA, 105)),
+lay <- rbind(c(rep(1, 496), rep(NA, 104)),
              c(rep(2, 600)),
-             c(rep(3, 495), rep(NA, 105)))
+             c(rep(3, 496), rep(NA, 104)))
 p_cen <- grid.arrange(
   bind_rows(
     get_centroids_df(cl_3, "adaptive\nfunHDDC"),
@@ -270,7 +272,8 @@ p_cen <- grid.arrange(
     scale_color_brewer(palette = "Set1") +
     xlab("time") +
     ylab(expression("Resistance "~paste("[",mu,Omega,"]"))) +
-    guides(color = guide_legend(override.aes = list(lwd = 1, alpha = 1))),
+    guides(color = guide_legend(override.aes = list(lwd = 1, alpha = 1))) +
+    theme(aspect.ratio=1),
   bind_rows(
     get_centroids_df(cl_5_hc, "filtering B-spline\nhierarchical"),
     get_centroids_df(cl_5_km, "filtering B-spline\nk-means"),
@@ -286,7 +289,8 @@ p_cen <- grid.arrange(
     scale_color_brewer(palette = "Set1") +
     xlab("time") +
     ylab(expression("Resistance "~paste("[",mu,Omega,"]"))) +
-    guides(color = guide_legend(override.aes = list(lwd = 1, alpha = 1))),
+    guides(color = guide_legend(override.aes = list(lwd = 1, alpha = 1))) +
+    theme(aspect.ratio=1),
   bind_rows(
     get_centroids_df(cl_1, "adaptive\nfclust"),
     get_centroids_df(cl_5_mb, "filtering B-spline\nmodel-based"),
@@ -301,10 +305,11 @@ p_cen <- grid.arrange(
     scale_color_brewer(palette = "Set1") +
     xlab("time") +
     ylab(expression("Resistance "~paste("[",mu,Omega,"]"))) +
-    guides(color = guide_legend(override.aes = list(lwd = 1, alpha = 1))),
+    guides(color = guide_legend(override.aes = list(lwd = 1, alpha = 1))) +
+    theme(aspect.ratio=1),
   layout_matrix = lay
 )
-# ggsave("plots/centroids.pdf", p_cen, width = 10, height = 10)
+# ggsave("plots/centroids.pdf", p_cen, width = 10, height = 8)
 
 get_clustered_funs_df <- function(cl, method) {
   
@@ -343,9 +348,9 @@ get_clustered_funs_df <- function(cl, method) {
     mutate(cluster = cluster %>% as.character %>% factor)
 }
 
-lay <- rbind(c(rep(1, 502), rep(NA, 98)),
+lay <- rbind(c(rep(1, 496), rep(NA, 104)),
              c(rep(2, 600)),
-             c(rep(3, 502), rep(NA, 98)))
+             c(rep(3, 496), rep(NA, 104)))
 p_funs <- grid.arrange(
   
   bind_rows(
@@ -361,7 +366,8 @@ p_funs <- grid.arrange(
     scale_color_brewer(palette = "Set1") +
     xlab("time") +
     ylab(expression("Resistance "~paste("[",mu,Omega,"]"))) +
-    guides(color = guide_legend(override.aes = list(lwd = 1, alpha = 1))),
+    guides(color = guide_legend(override.aes = list(lwd = 1, alpha = 1))) +
+    theme(aspect.ratio=1),
   
   bind_rows(
     get_clustered_funs_df(cl_5_hc, "filtering B-spline\nhierarchical"),
@@ -377,7 +383,8 @@ p_funs <- grid.arrange(
     scale_color_brewer(palette = "Set1") +
     xlab("time") +
     ylab(expression("Resistance "~paste("[",mu,Omega,"]"))) +
-    guides(color = guide_legend(override.aes = list(lwd = 1, alpha = 1))),
+    guides(color = guide_legend(override.aes = list(lwd = 1, alpha = 1))) +
+    theme(aspect.ratio=1),
   
   bind_rows(
     get_clustered_funs_df(cl_1, "adaptive\nfclust"),
@@ -392,10 +399,11 @@ p_funs <- grid.arrange(
     scale_color_brewer(palette = "Set1") +
     xlab("time") +
     ylab(expression("Resistance "~paste("[",mu,Omega,"]"))) +
-    guides(color = guide_legend(override.aes = list(lwd = 1, alpha = 1))),
+    guides(color = guide_legend(override.aes = list(lwd = 1, alpha = 1))) +
+    theme(aspect.ratio=1),
   layout_matrix = lay
 )
-# ggsave("plots/col_functions.png", p_funs, width = 10, height = 10)
+# ggsave("plots/col_functions.png", p_funs, width = 10, height = 8)
 
 
 # pad ---------------------------------------------------------------------
@@ -435,7 +443,7 @@ df_obs <- data$X[, pad_profiles$pad_profiles] %>%
          type = "observation")
 levels(df_obs$cluster) <- ranked_clusters$clusters
 
-plot_pad <- df_obs %>% mutate(type = "wear level") %>% 
+plot_pad0 <- df_obs %>% mutate(type = "wear level") %>% 
   mutate(cluster = ifelse(cluster == 1, "just renewed",
                           ifelse(cluster == 2, "medium wear", "severe wear"))) %>% 
   mutate(cluster = factor(cluster, levels = c("just renewed", "medium wear", "severe wear"))) %>% 
@@ -450,11 +458,36 @@ plot_pad <- df_obs %>% mutate(type = "wear level") %>%
   xlab("time") +
   ylab(expression("Resistance "~paste("[",mu,Omega,"]"))) +
   theme(legend.position = "none") +
-  scale_linetype_manual(values = c(1,2,3)) +
-  ylim(c(260, 320))
-plot_pad
-# ggsave("plots/plot_pad0.pdf", plot_pad, width = 5, height = 4)
+  scale_linetype_manual(values = c(2,4,3)) +
+  ylim(c(260, 320)) +
+  theme(aspect.ratio = 1)
+plot_pad0
+# ggsave("plots/plot_pad0.pdf", plot_pad0, width = 5, height = 4)
 
+plot_pad <- df_obs %>% 
+  mutate(cluster = factor(as.character(cluster))) %>% 
+  left_join(pad_profiles %>% 
+              rename(obs = pad_profiles) %>% 
+              mutate(obs = as.character(obs)), by = c("obs", "wear.level")) %>% 
+  rename("wear level" = "wear.level") %>% 
+  ggplot +
+  geom_line(aes(x, Resistance, col = cluster), lwd = 1,
+            data = df_centr %>% 
+              mutate(cluster = factor(as.character(cluster)))) +
+  geom_line(aes(x, Resistance, group = obs, 
+                col = cluster, 
+                lty = `wear level`
+  )) +
+  theme_bw() +
+  scale_color_brewer(palette = "Set1") +
+  xlab("time") +
+  ylab(expression("Resistance "~paste("[",mu,Omega,"]"))) +
+  guides(color = guide_legend(override.aes = list(lwd = 1, alpha = 1))) +
+  scale_linetype_manual(values = c(2,4,3)) +
+  ylim(c(260, 320)) +
+  theme(aspect.ratio = 1)
+plot_pad
+# ggsave("plots/plot_pad0_col.pdf", plot_pad, width = 6.5, height = 4)
 
 plot_pad <- bind_rows(
   df_centr %>% mutate(type = "filtering B-spline hierarchical\ncentroids"),
