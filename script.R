@@ -288,7 +288,7 @@ p_cen <- grid.arrange(
     ylab(expression("Resistance "~paste("[",mu,Omega,"]"))) +
     guides(color = guide_legend(override.aes = list(lwd = 1, alpha = 1))),
   bind_rows(
-    get_centroids_df(cl_1, "adaptive\nfunclust"),
+    get_centroids_df(cl_1, "adaptive\nfclust"),
     get_centroids_df(cl_5_mb, "filtering B-spline\nmodel-based"),
     get_centroids_df(cl_6_mb, "filtering FPCA\nmodel-based"),
     get_centroids_df(cl_7_mb, "raw\nmodel-based")
@@ -380,7 +380,7 @@ p_funs <- grid.arrange(
     guides(color = guide_legend(override.aes = list(lwd = 1, alpha = 1))),
   
   bind_rows(
-    get_clustered_funs_df(cl_1, "adaptive\nfunclust"),
+    get_clustered_funs_df(cl_1, "adaptive\nfclust"),
     get_clustered_funs_df(cl_5_mb, "filtering B-spline\nmodel-based"),
     get_clustered_funs_df(cl_6_mb, "filtering FPCA\nmodel-based"),
     get_clustered_funs_df(cl_7_mb, "raw\nmodel-based")
@@ -436,9 +436,9 @@ df_obs <- data$X[, pad_profiles$pad_profiles] %>%
 levels(df_obs$cluster) <- ranked_clusters$clusters
 
 plot_pad <- df_obs %>% mutate(type = "wear level") %>% 
-  mutate(cluster = ifelse(cluster == 1, "renewed",
+  mutate(cluster = ifelse(cluster == 1, "just renewed",
                           ifelse(cluster == 2, "medium wear", "severe wear"))) %>% 
-  mutate(cluster = factor(cluster, levels = c("renewed", "medium wear", "severe wear"))) %>% 
+  mutate(cluster = factor(cluster, levels = c("just renewed", "medium wear", "severe wear"))) %>% 
   rename("wear level" = cluster) %>%
   ggplot +
   geom_line(aes(x, Resistance, 
@@ -457,25 +457,30 @@ plot_pad
 
 
 plot_pad <- bind_rows(
-  df_centr %>% mutate(type = "Filtering B-spline hierarchical\ncentroid"),
-  df_obs %>% mutate(type = "observation")
+  df_centr %>% mutate(type = "filtering B-spline hierarchical\ncentroids"),
+  df_obs %>% mutate(type = "observations with\nwear information")
 ) %>% 
-  mutate(cluster = ifelse(cluster == 1, "1/renewed",
-                          ifelse(cluster == 2, "2/medium wear", "3/severe wear"))) %>%
+  mutate(cluster = ifelse(cluster == 1, "1/just renewed",
+                          ifelse(cluster == 2, "2/medium wear", 
+                                 "3/severe wear"))) %>%
   rename("cluster/wear level" = cluster) %>%
   ggplot +
-  geom_line(aes(x, Resistance, 
-                group = obs, 
-                col = `cluster/wear level`,
-                lty = type, lwd = type
-  )) +
+  geom_line(aes(x, Resistance, group = obs, 
+                col = `cluster/wear level`, 
+                lty = type,
+                lwd = type
+                )) +
   theme_bw() +
   scale_color_brewer(palette = "Set1") +
   xlab("time") +
   ylab(expression("Resistance "~paste("[",mu,Omega,"]"))) +
-  guides(color = guide_legend(override.aes = list(lwd = 1, alpha = 1))) +
-  scale_size_manual(values = c("Filtering B-spline hierarchical\ncentroid" = .5, observation = 1)) +
-  ylim(c(260, 320)) 
+  guides(color = guide_legend(override.aes = list(lwd = 1, alpha = 1))
+         # lty = FALSE,
+         # lwd = FALSE
+         ) +
+  scale_size_manual(values = c("filtering B-spline hierarchical\ncentroids" = 1,
+                               "observations with\nwear information" = .6)) +
+  ylim(c(260, 320))
   # facet_wrap(~ type)
 plot_pad
 # ggsave("plots/plot_pad_wrap.pdf", plot_pad, width = 9, height = 4)
