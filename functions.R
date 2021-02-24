@@ -22,12 +22,11 @@ fit_fclust_ms<-function(data,num_cluster_seq=2:4,dim_seq=5,ncores=1){
   N<-length(unique(data_vec$curve))
   
   parr_fun<-function(ii){
-    cat(ii)
     parameters<-as.numeric(comb_list[ii,])
     dim_i<-parameters[1]
     num_cluster<-parameters[2]
     h<-parameters[3]
-    fit_fclust<-fitfclust(data=data_vec,trace = TRUE,K=num_cluster,q  =dim_i,h=h,pert =1,grid = data$grid ,plot=TRUE)
+    fit_fclust<-fitfclust(data=data_vec,trace = FALSE,K=num_cluster,q  =dim_i,h=h,pert =1,grid = data$grid ,plot=FALSE)
     ll<-loglik(data=fit_fclust$data, parameters=fit_fclust$parameters, vars=fit_fclust$vars, FullS=fit_fclust$FullS)
     N<-length(unique(data_vec$curve))
     K <- dim(fit_fclust$vars$gamma)[2]
@@ -121,7 +120,7 @@ curvclust<-function(data,K, structure, mixed, reduction){
   
   mu<-matrix(unlist(getwr.mu(CCR,CCO,CCDred)),q,K)
   
-  matplot(mu,type="l")
+  # matplot(mu,type="l")
   cluster <- if (K > 1) apply(CCR@Tau,1,which.max) else NULL
   
   BIC<--getBIC(CCR,CCDred)
@@ -1049,3 +1048,40 @@ loglik <- function(parameters, data, vars, FullS,W=NA,AW_vec=NA,P_tot=NA,lambda_
   return(out)
 }
 
+
+get_centroids_df <- function(cl, data, method) {
+  data$X %>% 
+    t() %>% 
+    as.data.frame() %>% 
+    mutate(class = cl) %>% 
+    group_by(class) %>% 
+    summarise_all(mean) %>% 
+    dplyr::select(-class) %>% 
+    as.matrix() %>% 
+    t() %>%
+    as.data.frame() %>% 
+    setNames(names(table(cl))) %>% 
+    mutate(time = 1:n()) %>% 
+    pivot_longer(- time, names_to = "cluster", values_to = "Resistance") %>% 
+    mutate(mod = method) %>% 
+    mutate(cluster = factor(cluster))
+}
+
+
+get_clustered_funs_df <- function(cl, data, method) {
+  
+  df_centroids <- get_centroids_df(cl, data, method) 
+  
+  df <- data$X %>% 
+    as.data.frame() %>% 
+    mutate(time = 1:n()) %>% 
+    pivot_longer(- time, names_to = "obs", values_to = "Resistance") %>% 
+    inner_join(data.frame(obs = colnames(data$X),
+                          cluster = cl), by = "obs") %>% 
+    mutate(cluster = as.character(cluster),
+           mod = method) %>% 
+    mutate(cluster = factor(cluster))
+  
+  df %>% 
+    mutate(cluster = cluster %>% as.character %>% factor)
+}

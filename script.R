@@ -66,17 +66,68 @@ plot_analysis <- data$X %>%
 # plot_analysis
 # ggsave("plots/plot_analysis.png", plot_analysis, width = 5, height = 4)
 
-plot_ref_data <- read.csv("reference_profile.csv") %>% 
+df_ref <- read.csv("reference_profile.csv") %>% 
+  mutate(time = 1:n())
+which_min <- df_ref %>% 
+  filter(time < 100) %>% 
+  pull(Resistance) %>% 
+  which.min()
+this_min <- df_ref$Resistance[which_min]
+which_max <- df_ref %>% 
   mutate(time = 1:n()) %>%
+  filter(time > 50) %>% 
+  filter(Resistance == max(Resistance)) %>% 
+  pull(time)
+this_max <- df_ref$Resistance[which_max]
+which_end <- 238
+this_end <- last(df_ref$Resistance)
+which_mp <- which.max(diff(df_ref$Resistance))
+this_mp <- df_ref$Resistance[which_mp]
+plot_ref_data <- df_ref %>% 
   ggplot +
-  geom_line(aes(time, Resistance)) +
   theme_bw() +
   ylab(expression("Resistance " ~ paste("[", mu, Omega, "]"))) +
   xlab("Time [ms]") +
-  ylim(c(260, 320)) +
-  theme(aspect.ratio=1)
-# plot_ref_data
-# ggsave("plots/plot_ref_data.pdf", plot_ref_data, width = 5, height = 4)
+  # ylim(c(260, 320)) +
+  theme(aspect.ratio=1) +
+  geom_segment(aes(x = which_max, xend = which_max, y = this_min, yend = this_max), 
+               lty = 2, 
+               size = .25,
+               colour = "darkgrey",
+               arrow = arrow(ends = "both", length = unit(0.1, "inches"))) +
+  geom_text(aes(x = which_max + 9, y = (this_min + this_max) / 2, label = "(I)"),
+            colour = "darkgrey") +
+  geom_segment(aes(x = which_min, xend = which_max, y = this_min, yend = this_min), 
+               lty = 2, 
+               size = .25,
+               colour = "darkgrey",
+               arrow = arrow(ends = "both", length = unit(0.1, "inches"))) +
+  geom_segment(aes(x = which_max, xend = 238, y = this_min, yend = this_min), 
+               lty = 2, 
+               size = .25,
+               colour = "darkgrey",
+               arrow = arrow(ends = "both", length = unit(0.1, "inches"))) +
+  geom_segment(aes(x = 238, xend = 238, y = this_end - 3, yend = this_min + 3), 
+               lty = 2, 
+               size = .25,
+               colour = "darkgrey") +
+  geom_text(aes(x = (which_min + which_max) / 2, y = this_min - 1, label = "(II)"), 
+            colour = "darkgrey") +
+  # geom_text(aes(x = which_end + 12, y = this_end, label = "(III)")) +
+  geom_text(aes(x = (238 - which_min) / 2 + which_min, y = this_min - 1, label = "(IV)"), 
+            colour = "darkgrey") +
+  geom_point(aes(which_mp, this_mp), colour = "darkgrey") +
+  geom_point(aes(which_max, this_max), colour = "darkgrey") +
+  geom_line(aes(time, Resistance)) +
+  geom_text(aes(x = which_mp - 12, y = this_mp, label = "MP"), colour = "darkgrey") +
+  geom_text(aes(x = which_max, y = this_max + 1.35, label = "NF"), colour = "darkgrey") +
+  scale_y_continuous(breaks = c(270, this_end, 280, 290),
+                     labels = c("270", "(III)", "280", "290")) +
+  geom_hline(aes(yintercept = this_end), lty = 2, colour = "darkgrey") +
+  theme_bw() +
+  theme(panel.grid = element_blank())
+plot_ref_data
+# ggsave("plots/plot_ref_data_new.pdf", plot_ref_data, width = 5, height = 4)
 
 
 
@@ -231,21 +282,24 @@ cl_7_km <- mod7$mod_opt$ind_km$cluster
 cl_7_hc <- mod7$mod_opt$ind_hc$cluster
 cl_7_mb <- mod7$mod_opt$mod_opt$classification
 
-get_centroids_df <- function(cl, method) {
+get_centroids_df <- function(cl, data, method) {
   df <- data$X %>% 
-    t %>% as.data.frame %>% 
+    t() %>% 
+    as.data.frame() %>% 
     mutate(class = cl) %>% 
     group_by(class) %>% 
     summarise_all(mean) %>% 
-    dplyr::select(-class) %>% as.matrix %>% t %>%
+    dplyr::select(-class) %>% 
+    as.matrix() %>% 
+    t() %>%
     as.data.frame %>% 
     setNames(names(table(cl))) %>% 
-    mutate(x = seq(0, 1, length = n())) %>% 
-    pivot_longer(-x, names_to = "cluster", values_to = "Resistance") %>% 
+    mutate(time = 1:n()) %>% 
+    pivot_longer(- time, names_to = "cluster", values_to = "Resistance") %>% 
     mutate(mod = method) %>% 
     mutate(cluster = factor(cluster))
   levels(df$cluster) <- data.frame(ranked_clusters = df %>% 
-                                     filter(x > .0885, x < .089) %>% 
+                                     filter(time == 21) %>% 
                                      arrange(desc(Resistance)) %>% 
                                      pull(cluster)) %>% 
     mutate(clusters = 1:n()) %>% 
@@ -254,64 +308,9 @@ get_centroids_df <- function(cl, method) {
   df
   
 }
-lay <- rbind(c(rep(1, 496), rep(NA, 104)),
-             c(rep(2, 600)),
-             c(rep(3, 496), rep(NA, 104)))
-p_cen <- grid.arrange(
-  bind_rows(
-    get_centroids_df(cl_3, "adaptive\nfunHDDC"),
-    get_centroids_df(cl_4, "distance-based"),
-    get_centroids_df(cl_7_hc, "raw\nhierarchical"),
-    get_centroids_df(cl_2, "adaptive\ncurvclust"),
-  ) %>% 
-    mutate(cluster = cluster %>% as.character %>% factor) %>% 
-    ggplot +
-    geom_line(aes(x, Resistance, col = cluster)) +
-    theme_bw() +
-    facet_wrap(~ mod, nrow = 1) +
-    scale_color_brewer(palette = "Set1") +
-    xlab("time") +
-    ylab(expression("Resistance "~paste("[",mu,Omega,"]"))) +
-    guides(color = guide_legend(override.aes = list(lwd = 1, alpha = 1))) +
-    theme(aspect.ratio=1),
-  bind_rows(
-    get_centroids_df(cl_5_hc, "filtering B-spline\nhierarchical"),
-    get_centroids_df(cl_5_km, "filtering B-spline\nk-means"),
-    get_centroids_df(cl_6_hc, "filtering FPCA\nhierarchical"),
-    get_centroids_df(cl_6_km, "filtering FPCA\nk-means"),
-    get_centroids_df(cl_7_km, "raw\nk-means"),
-  ) %>% 
-    mutate(cluster = cluster %>% as.character %>% factor) %>% 
-    ggplot +
-    geom_line(aes(x, Resistance, col = cluster)) +
-    theme_bw() +
-    facet_wrap(~ mod, nrow = 1) +
-    scale_color_brewer(palette = "Set1") +
-    xlab("time") +
-    ylab(expression("Resistance "~paste("[",mu,Omega,"]"))) +
-    guides(color = guide_legend(override.aes = list(lwd = 1, alpha = 1))) +
-    theme(aspect.ratio=1),
-  bind_rows(
-    get_centroids_df(cl_1, "adaptive\nfclust"),
-    get_centroids_df(cl_5_mb, "filtering B-spline\nmodel-based"),
-    get_centroids_df(cl_6_mb, "filtering FPCA\nmodel-based"),
-    get_centroids_df(cl_7_mb, "raw\nmodel-based")
-  ) %>% 
-    mutate(cluster = cluster %>% as.character %>% factor) %>% 
-    ggplot +
-    geom_line(aes(x, Resistance, col = cluster)) +
-    theme_bw() +
-    facet_wrap(~ mod, nrow = 1) +
-    scale_color_brewer(palette = "Set1") +
-    xlab("time") +
-    ylab(expression("Resistance "~paste("[",mu,Omega,"]"))) +
-    guides(color = guide_legend(override.aes = list(lwd = 1, alpha = 1))) +
-    theme(aspect.ratio=1),
-  layout_matrix = lay
-)
-# ggsave("plots/centroids.pdf", p_cen, width = 10, height = 8)
 
-get_clustered_funs_df <- function(cl, method) {
+
+get_clustered_funs_df <- function(cl, data, method) {
   
   df_centroids <- data$X %>% 
     t %>% as.data.frame %>% 
@@ -321,15 +320,15 @@ get_clustered_funs_df <- function(cl, method) {
     dplyr::select(- class) %>% as.matrix %>% t %>%
     as.data.frame %>% 
     setNames(names(table(cl))) %>% 
-    mutate(x = seq(0, 1, length = n())) %>% 
-    pivot_longer(- x, names_to = "cluster", values_to = "Resistance") %>% 
+    mutate(time = 1:n()) %>% 
+    pivot_longer(- time, names_to = "cluster", values_to = "Resistance") %>% 
     mutate(mod = method) %>% 
     mutate(cluster = factor(cluster))
   
   df <- data$X %>% 
     as.data.frame %>% 
-    mutate(x = seq(0, 1, length = n())) %>% 
-    pivot_longer(- x, names_to = "obs", values_to = "Resistance") %>% 
+    mutate(time = 1:n()) %>% 
+    pivot_longer(- time, names_to = "obs", values_to = "Resistance") %>% 
     inner_join(data.frame(obs = colnames(data$X),
                           cluster = cl), by = "obs") %>% 
     mutate(cluster = as.character(cluster),
@@ -337,7 +336,7 @@ get_clustered_funs_df <- function(cl, method) {
     mutate(cluster = factor(cluster))
   
   levels(df$cluster) <- data.frame(ranked_clusters = df_centroids %>% 
-                                     filter(x > .0885, x < .089) %>% 
+                                     filter(time == 21) %>% 
                                      arrange(desc(Resistance)) %>% 
                                      pull(cluster)) %>% 
     mutate(clusters = 1:n()) %>% 
@@ -351,53 +350,109 @@ get_clustered_funs_df <- function(cl, method) {
 lay <- rbind(c(rep(1, 496), rep(NA, 104)),
              c(rep(2, 600)),
              c(rep(3, 496), rep(NA, 104)))
+p_cen <- grid.arrange(
+  bind_rows(
+    get_centroids_df(cl_3, data, "adaptive\nfunHDDC"),
+    get_centroids_df(cl_4, data, "distance-based"),
+    get_centroids_df(cl_7_hc, data, "raw\nhierarchical"),
+    get_centroids_df(cl_2, data, "adaptive\ncurvclust")) %>% 
+    mutate(cluster = cluster %>% as.character %>% factor) %>% 
+    ggplot() +
+    geom_line(aes(time, Resistance, col = cluster)) +
+    theme_bw() +
+    facet_wrap(~ mod, nrow = 1) +
+    scale_color_brewer(palette = "Set1") +
+    xlab("Time [ms]") +
+    ylab(expression("Resistance "~paste("[",mu,Omega,"]"))) +
+    guides(color = guide_legend(override.aes = list(lwd = 1, alpha = 1))) +
+    theme(aspect.ratio=1),
+  bind_rows(
+    get_centroids_df(cl_5_hc, data, "filtering B-spline\nhierarchical"),
+    get_centroids_df(cl_5_km, data, "filtering B-spline\nk-means"),
+    get_centroids_df(cl_6_hc, data, "filtering FPCA\nhierarchical"),
+    get_centroids_df(cl_6_km, data, "filtering FPCA\nk-means"),
+    get_centroids_df(cl_7_km, data, "raw\nk-means"),
+  ) %>% 
+    mutate(cluster = cluster %>% as.character %>% factor) %>% 
+    ggplot +
+    geom_line(aes(time, Resistance, col = cluster)) +
+    theme_bw() +
+    facet_wrap(~ mod, nrow = 1) +
+    scale_color_brewer(palette = "Set1") +
+    xlab("Time [ms]") +
+    ylab(expression("Resistance "~paste("[",mu,Omega,"]"))) +
+    guides(color = guide_legend(override.aes = list(lwd = 1, alpha = 1))) +
+    theme(aspect.ratio=1),
+  bind_rows(
+    get_centroids_df(cl_1, data, "adaptive\nfclust"),
+    get_centroids_df(cl_5_mb, data, "filtering B-spline\nmodel-based"),
+    get_centroids_df(cl_6_mb, data, "filtering FPCA\nmodel-based"),
+    get_centroids_df(cl_7_mb, data, "raw\nmodel-based")
+  ) %>% 
+    mutate(cluster = cluster %>% as.character %>% factor) %>% 
+    ggplot +
+    geom_line(aes(time, Resistance, col = cluster)) +
+    theme_bw() +
+    facet_wrap(~ mod, nrow = 1) +
+    scale_color_brewer(palette = "Set1") +
+    xlab("Time [ms]") +
+    ylab(expression("Resistance "~paste("[",mu,Omega,"]"))) +
+    guides(color = guide_legend(override.aes = list(lwd = 1, alpha = 1))) +
+    theme(aspect.ratio=1),
+  layout_matrix = lay
+)
+# ggsave("plots/centroids.pdf", p_cen, width = 10, height = 8)
+
+lay <- rbind(c(rep(1, 496), rep(NA, 104)),
+             c(rep(2, 600)),
+             c(rep(3, 496), rep(NA, 104)))
 p_funs <- grid.arrange(
   
   bind_rows(
-    get_clustered_funs_df(cl_3, "adaptive\nfunHDDC"),
-    get_clustered_funs_df(cl_4, "distance-based"),
-    get_clustered_funs_df(cl_7_hc, "raw\nhierarchical"),
-    get_clustered_funs_df(cl_2, "adaptive\ncurvclust"),
+    get_clustered_funs_df(cl_3, data, "adaptive\nfunHDDC"),
+    get_clustered_funs_df(cl_4, data, "distance-based"),
+    get_clustered_funs_df(cl_7_hc, data, "raw\nhierarchical"),
+    get_clustered_funs_df(cl_2, data, "adaptive\ncurvclust"),
   ) %>% 
     ggplot +
-    geom_line(aes(x, Resistance, group = obs, col = cluster), alpha = .25) +
+    geom_line(aes(time, Resistance, group = obs, col = cluster), alpha = .25) +
     theme_bw() +
     facet_wrap(~ mod, nrow = 1) + 
     scale_color_brewer(palette = "Set1") +
-    xlab("time") +
+    xlab("Time [ms]") +
     ylab(expression("Resistance "~paste("[",mu,Omega,"]"))) +
     guides(color = guide_legend(override.aes = list(lwd = 1, alpha = 1))) +
     theme(aspect.ratio=1),
   
   bind_rows(
-    get_clustered_funs_df(cl_5_hc, "filtering B-spline\nhierarchical"),
-    get_clustered_funs_df(cl_5_km, "filtering B-spline\nk-means"),
-    get_clustered_funs_df(cl_6_hc, "filtering FPCA\nhierarchical"),
-    get_clustered_funs_df(cl_6_km, "filtering FPCA\nk-means"),
-    get_clustered_funs_df(cl_7_km, "raw\nk-means"),
+    get_clustered_funs_df(cl_5_hc, data, "filtering B-spline\nhierarchical"),
+    get_clustered_funs_df(cl_5_km, data, "filtering B-spline\nk-means"),
+    get_clustered_funs_df(cl_6_hc, data, "filtering FPCA\nhierarchical"),
+    get_clustered_funs_df(cl_6_km, data, "filtering FPCA\nk-means"),
+    get_clustered_funs_df(cl_7_km, data, "raw\nk-means"),
   ) %>% 
     ggplot +
-    geom_line(aes(x, Resistance, group = obs, col = cluster), alpha = .25) +
+    geom_line(aes(time, Resistance, group = obs, col = cluster), alpha = .25) +
     theme_bw() +
     facet_wrap(~ mod, nrow = 1) + 
     scale_color_brewer(palette = "Set1") +
-    xlab("time") +
+    xlab("Time [ms]") +
     ylab(expression("Resistance "~paste("[",mu,Omega,"]"))) +
     guides(color = guide_legend(override.aes = list(lwd = 1, alpha = 1))) +
     theme(aspect.ratio=1),
   
   bind_rows(
-    get_clustered_funs_df(cl_1, "adaptive\nfclust"),
-    get_clustered_funs_df(cl_5_mb, "filtering B-spline\nmodel-based"),
-    get_clustered_funs_df(cl_6_mb, "filtering FPCA\nmodel-based"),
-    get_clustered_funs_df(cl_7_mb, "raw\nmodel-based")
+    get_clustered_funs_df(cl_1, data, "adaptive\nfclust"),
+    get_clustered_funs_df(cl_5_mb, data, "filtering B-spline\nmodel-based"),
+    get_clustered_funs_df(cl_6_mb, data, "filtering FPCA\nmodel-based"),
+    get_clustered_funs_df(cl_7_mb, data, "raw\nmodel-based")
   ) %>% 
     ggplot +
-    geom_line(aes(x, Resistance, group = obs, col = cluster), alpha = .25) +
+    geom_line(aes(time, Resistance, group = obs, col = cluster), alpha = .25) +
     theme_bw() +
     facet_wrap(~ mod, nrow = 1) + 
     scale_color_brewer(palette = "Set1") +
-    xlab("time") +
+    xlab("Time [ms]") +
     ylab(expression("Resistance "~paste("[",mu,Omega,"]"))) +
     guides(color = guide_legend(override.aes = list(lwd = 1, alpha = 1))) +
     theme(aspect.ratio=1),
@@ -417,13 +472,13 @@ df_centr <- data$X %>%
   dplyr::select(-class) %>% as.matrix %>% t %>%
   as.data.frame %>% 
   setNames(names(table(cl_5_hc))) %>% 
-  mutate(x = seq(0, 1, length = n())) %>% 
+  mutate(x = 1:n()) %>% 
   pivot_longer(-x, names_to = "cluster", values_to = "Resistance") %>% 
   mutate(mod = "filtering B-spline hc") %>% 
   mutate(cluster = factor(cluster)) %>% 
   mutate(obs = paste("centroid", cluster))
 ranked_clusters <- data.frame(ranked_clusters = df_centr %>% 
-                                filter(x > .0885, x < .089) %>% 
+                                filter(x == 21) %>% 
                                 arrange(desc(Resistance)) %>% 
                                 pull(cluster)) %>% 
   mutate(clusters = 1:n()) %>% 
@@ -432,7 +487,7 @@ levels(df_centr$cluster) <- ranked_clusters$clusters
 
 df_obs <- data$X[, pad_profiles$pad_profiles] %>% 
   as.data.frame %>% 
-  mutate(x = seq(0, 1, length = n())) %>% 
+  mutate(x = 1:n()) %>% 
   pivot_longer(- x, names_to = "obs", values_to = "Resistance") %>% 
   inner_join(data.frame(cluster = cl_5_hc, obs = as.character(seq_along(cl_5_hc))),
              by = "obs") %>%
@@ -451,14 +506,16 @@ plot_pad0 <- df_obs %>% mutate(type = "wear level") %>%
   ggplot +
   geom_line(aes(x, Resistance, 
                 group = obs, 
-                lty = `wear level`
+                lty = `wear level`,
+                lwd = `wear level`
                 )) +
   theme_bw() +
   scale_color_brewer(palette = "Set1") +
-  xlab("time") +
+  xlab("Time [ms]") +
   ylab(expression("Resistance "~paste("[",mu,Omega,"]"))) +
   theme(legend.position = "none") +
-  scale_linetype_manual(values = c(2,4,3)) +
+  scale_linetype_manual(values = c(1,2,3)) + 
+  scale_size_manual(values = c(.3,.5,.6)) +
   ylim(c(260, 320)) +
   theme(aspect.ratio = 1)
 plot_pad0
@@ -476,14 +533,16 @@ plot_pad <- df_obs %>%
               mutate(cluster = factor(as.character(cluster)))) +
   geom_line(aes(x, Resistance, group = obs, 
                 col = cluster, 
-                lty = `wear level`
+                lty = `wear level`,
+                lwd = `wear level`
   )) +
   theme_bw() +
   scale_color_brewer(palette = "Set1") +
-  xlab("time") +
+  xlab("Time [ms]") +
   ylab(expression("Resistance "~paste("[",mu,Omega,"]"))) +
   guides(color = guide_legend(override.aes = list(lwd = 1, alpha = 1))) +
-  scale_linetype_manual(values = c(2,4,3)) +
+  scale_linetype_manual(values = 1:3) +
+  scale_size_manual(values = c(.3,.5,.6)) +
   ylim(c(260, 320)) +
   theme(aspect.ratio = 1)
 plot_pad
@@ -505,7 +564,7 @@ plot_pad <- bind_rows(
                 )) +
   theme_bw() +
   scale_color_brewer(palette = "Set1") +
-  xlab("time") +
+  xlab("Time [ms]") +
   ylab(expression("Resistance "~paste("[",mu,Omega,"]"))) +
   guides(color = guide_legend(override.aes = list(lwd = 1, alpha = 1))
          # lty = FALSE,
@@ -518,3 +577,165 @@ plot_pad <- bind_rows(
 plot_pad
 # ggsave("plots/plot_pad_wrap.pdf", plot_pad, width = 9, height = 4)
 # ggsave("plots/plot_pad_all.pdf", plot_pad, width = 6, height = 4)
+
+#############################
+# CFR multivariate --------------------------------------------------------
+#############################
+df_rev <- bind_cols(
+  data$X %>%
+    as.data.frame %>%
+    mutate(x = 1:238) %>%
+    pivot_longer(-x) %>% 
+    filter(x < 50) %>% 
+    group_by(name) %>% 
+    summarise(min = min(value),
+              which_min = x[which.min(value)]),
+  
+  data$X %>%
+    as.data.frame %>%
+    mutate(x = 1:238) %>%
+    pivot_longer(-x) %>% 
+    filter(x > 25) %>% 
+    group_by(name) %>% 
+    summarise(max = max(value),
+              which_max = x[which.max(value)]) %>% 
+    select(-name),
+  
+  data$X %>%
+    as.data.frame %>%
+    mutate(x = 1:238) %>%
+    pivot_longer(-x) %>% 
+    group_by(name) %>% 
+    summarise(end = tail(value, 1)) %>% 
+    select(-name)
+) %>% 
+  mutate(ampl_diff = max - min,
+         phase_diff = which_max - which_min) %>% 
+  mutate(name = factor(name, levels = colnames(data$X))) %>% 
+  arrange(name)
+
+
+# plot_analysis + 
+#   geom_point(aes(which_min, min), data = df_rev, size = .25) +
+#   geom_point(aes(which_max, max), data = df_rev, size = .25, col = "red") +
+#   geom_point(aes(238, end), data = df_rev, size = .25, col = "darkgreen")
+
+B <- df_rev %>% 
+  select(ampl_diff, phase_diff, end)
+
+mod_km <- NbClust(data = B,  
+                  method = "kmeans",
+                  min.nc = 2, 
+                  max.nc = 10)
+## Best number of clusters is 3
+mod_hc <- NbClust(data = B,  
+                  method = "ward.D2",min.nc = 2, 
+                  max.nc = 10)
+## Best number of clusters is 3
+
+model_based <- mclustBIC(B,G=c(1,num_cluster_seq))
+plot(model_based)
+## Best number of clusters is 4
+
+mod_opt_hc <- hcut(B, k = 3)
+mod_opt_km <- kmeans(B, centers = 3)
+mod_opt_mod <- Mclust(B, G = 4)
+
+cl_hc <- factor(mod_opt_hc$cluster) %>% 
+  fct_recode("1" = "2",
+             "2" = "1") %>% 
+  fct_relevel("1", "2", "3")
+cl_hc
+cl_km <- factor(mod_opt_km$cluster)
+cl_mod <- factor(mod_opt_mod$classification) %>% 
+  fct_recode("1" = "4",
+             "2" = "1",
+             "4" = "2") %>% 
+  fct_relevel("1", "2", "3", "4")
+
+df_features <- data$X %>%
+  as.data.frame %>%
+  mutate(x = 1:238) %>%
+  pivot_longer(-x) %>% 
+  inner_join(
+    df_rev %>% 
+      mutate(`features hierarchical` = cl_hc, `features k-means` = cl_km, `features model-based` = cl_mod),
+    by = "name")
+
+p <- df_features %>%  
+  pivot_longer(c(`features hierarchical`, `features k-means`, `features model-based`), 
+               names_to = "method", 
+               values_to = "cluster") %>% 
+  ggplot() +
+  geom_line(aes(x, value, group = name, col = cluster), alpha = .25) +
+  theme_bw() +
+  ylab(expression("Resistance "~paste("[",mu,Omega,"]"))) +
+  xlab("Time [ms]") +
+  scale_colour_brewer(palette = "Set1") +
+  facet_wrap(~method) +
+  guides(color = guide_legend(override.aes = list(lwd = 1, alpha = 1)))
+p
+# ggsave("plots/features.pdf", p, width = 9, height = 3.5)  
+
+# silhouette index --------------------------------------------------------
+dist_l2 <- semimetric.basis(data$X_fd)
+
+basis <- create.bspline.basis(c(0, 1), nbasis = 12)
+loglam <- seq(-10, -4, 0.25)
+Gcvsave <- numeric()
+for (i in 1:length(loglam)) {
+  fdPari     = fdPar(basis, Lfdobj = 2, 10^loglam[i])
+  Sm.i       = smooth.basis(data$grid, 
+                            data$X, 
+                            fdPari)
+  Gcvsave[i] = sum(Sm.i$gcv)
+}
+lambda_s=10^loglam[which.min(Gcvsave)]
+fdPari  = fdPar(basis, Lfdobj=2,0)
+X_fd<-smooth.basis(data$grid, 
+                   data$X, 
+                   fdPari)$fd
+
+B_spline<-t(X_fd$coefs)
+dimnames(B_spline) <- NULL
+
+set.seed(0)
+bootsrap_sil <- mclapply(1:25, function(ii) {
+  rows <- sample(1:538, replace = TRUE)
+  B <- df_rev %>% 
+    slice(rows) %>% 
+    select(ampl_diff, phase_diff, end)
+  
+  mod_opt_hc <- hcut(B, k = 3)
+  mod_opt_km <- kmeans(B, centers = 3)
+  mod_opt_mod <- Mclust(B, G = 4)
+  
+  cl_hc <- factor(mod_opt_hc$cluster)
+  cl_km <- factor(mod_opt_km$cluster)
+  cl_mod <- factor(mod_opt_mod$classification)
+  
+  mod_opt_hc_bspline <- hcut(B_spline[rows, ], k = 3)
+  mod_opt_km_bspline <- kmeans(B_spline[rows, ], centers = 3)
+  
+  data.frame(
+    functional_bspline_hc   = mean(silhouette(mod_opt_hc_bspline$cluster, dist_l2[rows, rows])[, 3]),
+    functional_bspline_km   = mean(silhouette(mod_opt_km_bspline$cluster, dist_l2[rows, rows])[, 3]),
+    multivariate_hc         = mean(silhouette(as.numeric(cl_hc), dist_l2[rows, rows])[, 3]),
+    multivariate_km         = mean(silhouette(as.numeric(cl_km), dist_l2[rows, rows])[, 3]),
+    multivariate_mb         = mean(silhouette(as.numeric(cl_mod), dist_l2[rows, rows])[, 3])
+  )
+}, mc.cores = detectCores()) %>% 
+  bind_rows()
+
+p <- bootsrap_sil %>% 
+  rename("multivariate model-based" = "multivariate_mb",
+         "multivariate hierarchical" = "multivariate_hc",
+         "multivariate k-means" = "multivariate_km",
+         "functional filtering B-spline k-means" = "functional_bspline_km",
+         "functional filtering B-spline hierarchical" = "functional_bspline_hc",
+  ) %>% 
+  pivot_longer(everything(), names_to = "method", values_to = "silhouette index") %>% 
+  ggplot() +
+  geom_boxplot(aes(x = `silhouette index`, y = method))
+p
+# ggsave("plots/multiv_vs_functional.pdf", p, width = 6, height = 3)
