@@ -9,13 +9,14 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 This repository contains R code and data of the paper of Capezza, Centofanti, Lepore, and Palumbo, "Functional clustering methods for resistance spot-welding process data in the automotive industry".
+Note that this work was developed within the activities of the project ARS01_00861 “Integrated collaborative systems for smart factory - ICOSAF” coordinated by CRF (Centro Ricerche Fiat Scpa - www.crf.it) and financially supportedby MIUR (Ministero dell’Istruzione, dell’Università e della Ricerca).
 This repository contains the following files:
 
 * curvclust_0.0.1.tar.gz is the source code of the R package funclust, also available at: https://cran.r-project.org/src/contrib/Archive/curvclust/
-* data.csv contains the functional data set
+* data.csv contains the ICOSAF project functional data set
 * fclust.R contains functions specific to implement the fclust method
 * functions.R contains functions to apply all functional clustering approaches
-* pad_profiles.csv contains information about the welding tool wear level for some of the curves in the functional data set
+* pad_profiles.csv contains information about the welding tool wear level for some of the curves in the ICOSAF project functional data set
 * reference_profile.csv contains a reference dynamic resistance curve for illustrative purposes
 * script.R contains the script performing all the analysis shown in the paper
 
@@ -32,7 +33,7 @@ It requires the following files:
 -   `fclust.R` to implement `fclust` (James and Sugar (2003)),
 -   `functions.R` to fit all other functional clustering methods used in Capezza et al. (2020).
 
-Moreover, this code uses the data from the file `data.csv`, which contains the data set analyzed in Capezza et al. (2020).
+Moreover, this code uses the data from the file `data.csv`, which contains the ICOSAF project functional data set analyzed in Capezza et al. (2020).
 Alternatively, one can use another data set that must be arranged appropriately as in the next section "Data preparation".
 
 For each functional clustering method, we show how to perform the following steps:

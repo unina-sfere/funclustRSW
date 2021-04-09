@@ -3,18 +3,23 @@ funclustRSW
 
 This repository contains R code and data of the paper of Capezza,
 Centofanti, Lepore, and Palumbo, “Functional clustering methods for
-resistance spot-welding process data in the automotive industry”. This
-repository contains the following files:
+resistance spot-welding process data in the automotive industry”. Note
+that this work was developed within the activities of the project
+ARS01\_00861 “Integrated collaborative systems for smart factory -
+ICOSAF” coordinated by CRF (Centro Ricerche Fiat Scpa - www.crf.it) and
+financially supportedby MIUR (Ministero dell’Istruzione, dell’Università
+e della Ricerca). This repository contains the following files:
 
 -   curvclust\_0.0.1.tar.gz is the source code of the R package
     funclust, also available at:
     <https://cran.r-project.org/src/contrib/Archive/curvclust/>
--   data.csv contains the functional data set
+-   data.csv contains the ICOSAF project functional data set
 -   fclust.R contains functions specific to implement the fclust method
 -   functions.R contains functions to apply all functional clustering
     approaches
 -   pad\_profiles.csv contains information about the welding tool wear
-    level for some of the curves in the functional data set
+    level for some of the curves in the ICOSAF project functional data
+    set
 -   reference\_profile.csv contains a reference dynamic resistance curve
     for illustrative purposes
 -   script.R contains the script performing all the analysis shown in
@@ -38,9 +43,9 @@ equally-spaced grid. It requires the following files:
     Capezza et al. (2020).
 
 Moreover, this code uses the data from the file `data.csv`, which
-contains the data set analyzed in Capezza et al. (2020). Alternatively,
-one can use another data set that must be arranged appropriately as in
-the next section “Data preparation”.
+contains the ICOSAF project functional data set analyzed in Capezza et
+al. (2020). Alternatively, one can use another data set that must be
+arranged appropriately as in the next section “Data preparation”.
 
 For each functional clustering method, we show how to perform the
 following steps:
@@ -160,8 +165,8 @@ accordin to BIC.
 mod1$class_opt_BIC
 ```
 
-    ##  [1] 1 2 1 1 2 1 2 1 2 2 1 2 1 1 1 2 2 2 2 2 2 2 1 1 2 2 2 1 2 1 1 1 1 2 1 1 2 1
-    ## [39] 2 1 1 1 2 2 1 1 1 1 2 1 2 1 2 2
+    ##  [1] 1 2 2 1 2 2 2 2 2 2 1 2 1 1 1 2 2 2 2 2 2 2 2 1 2 2 2 1 2 1 1 1 1 2 1 1 2 2
+    ## [39] 2 1 1 2 2 2 1 1 1 1 2 1 2 2 2 2
 
 #### Plot of profiles coloured by cluster
 
@@ -264,15 +269,15 @@ bic
 ```
 
     ##      structure_none mixed_FALSE reduction_TRUE
-    ## [1,]                                  1453.071
-    ## [2,]                                  1469.700
-    ## [3,]                                  1386.544
-    ## [4,]                                  1315.170
+    ## [1,]                                  1453.584
+    ## [2,]                                  1467.521
+    ## [3,]                                  1379.903
+    ## [4,]                                  1321.963
     ##      structure_none mixed_FALSE reduction_FALSE
-    ## [1,]                                   1663.839
-    ## [2,]                                   1733.597
-    ## [3,]                                   1632.961
-    ## [4,]                                   1548.261
+    ## [1,]                                   1664.557
+    ## [2,]                                   1735.762
+    ## [3,]                                   1637.524
+    ## [4,]                                   1549.925
 
 We can plot BIC for every number of clusters and every structure by
 arranging the matrix of BIC values in a long-format data frame and then
@@ -290,14 +295,14 @@ bic_df_long
     ## # A tibble: 8 x 3
     ##       K model                                        BIC
     ##   <dbl> <chr>                                      <dbl>
-    ## 1     1 structure_none mixed_FALSE reduction_TRUE  1453.
-    ## 2     1 structure_none mixed_FALSE reduction_FALSE 1664.
-    ## 3     2 structure_none mixed_FALSE reduction_TRUE  1470.
-    ## 4     2 structure_none mixed_FALSE reduction_FALSE 1734.
-    ## 5     3 structure_none mixed_FALSE reduction_TRUE  1387.
-    ## 6     3 structure_none mixed_FALSE reduction_FALSE 1633.
-    ## 7     4 structure_none mixed_FALSE reduction_TRUE  1315.
-    ## 8     4 structure_none mixed_FALSE reduction_FALSE 1548.
+    ## 1     1 structure_none mixed_FALSE reduction_TRUE  1454.
+    ## 2     1 structure_none mixed_FALSE reduction_FALSE 1665.
+    ## 3     2 structure_none mixed_FALSE reduction_TRUE  1468.
+    ## 4     2 structure_none mixed_FALSE reduction_FALSE 1736.
+    ## 5     3 structure_none mixed_FALSE reduction_TRUE  1380.
+    ## 6     3 structure_none mixed_FALSE reduction_FALSE 1638.
+    ## 7     4 structure_none mixed_FALSE reduction_TRUE  1322.
+    ## 8     4 structure_none mixed_FALSE reduction_FALSE 1550.
 
 ``` r
 ggplot(bic_df_long) +
